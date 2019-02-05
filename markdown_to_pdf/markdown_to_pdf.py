@@ -30,7 +30,7 @@ def get_markdown_filepaths(configuration_filepath):
     """Return a list of markdown file paths from the given configuration file"""
     markdown_filepaths = []
     configuration_dirpath = os.path.dirname(configuration_filepath)
-    
+
     with open(configuration_filepath, 'rU') as configuration_file:
          configuration_file_content = yaml.load(configuration_file)
 
@@ -82,7 +82,7 @@ def create_file_order_list(elements):
 
     if isinstance(elements, basestring):
         return [elements]
-    
+
     if isinstance(elements,dict):
         for element in elements:
             paths = create_file_order_list(elements[element])
@@ -96,11 +96,11 @@ def build_monolitic_markdown_file(monolitic_markdown_filepath, markdown_filepath
     with open(monolitic_markdown_filepath, 'wb') as monolitic_markdown_file:
         for markdown_filepath in markdown_filepaths:
             temp_file = os.path.join(tempfile.gettempdir(),'temp_md_m2pdf.md')
-            
+
             print('Processing file [%s] ...' % markdown_filepath)
             with open(markdown_filepath, 'rU') as markdown_file:
                 markdown_content = markdown_file.read().decode('utf-8')
-                
+
                 markdown_content = fix_empty_lines(markdown_content)
 
                 markdown_content = fix_blanck_spaces_before_code_tag(markdown_content)
@@ -109,17 +109,17 @@ def build_monolitic_markdown_file(monolitic_markdown_filepath, markdown_filepath
 
                 markdown_content = fix_html_before_title(markdown_content)
                 markdown_content = fix_img_in_new_line(markdown_content)
-                
+
                 markdown_content = fix_new_line_after_img(markdown_content)
 
                 markdown_content = pypandoc.convert(markdown_content, 'markdown_github', format='markdown_github', filters=['md2pdf_pandoc_paragraph_filter'])
 
                 markdown_content = pypandoc.convert(markdown_content, 'markdown_github+all_symbols_escapable', format='markdown_github+all_symbols_escapable')
-                
+
                 markdown_content = pypandoc.convert(markdown_content, 'markdown_github', format=MD2PDF_INNER_FORMAT)
 
                 markdown_content = fix_special_characters_inside_links(markdown_content)
-   
+
                 markdown_content = prevent_latex_images_floating(markdown_content)
 
                 markdown_content = add_newlines_before_markdown_headers( markdown_content )
@@ -127,12 +127,12 @@ def build_monolitic_markdown_file(monolitic_markdown_filepath, markdown_filepath
                 markdown_content = separate_latex_anchors(markdown_content)
 
                 markdown_content = collapse_anchors_before_titles(markdown_content)
-                
+
                 markdown_content = translate_md_tables(markdown_content)
 
                 file_latex_label = generate_latex_anchor(slugify_string(markdown_filepath))
 
-                # This "file marker" is appended at the beginning of the 
+                # This "file marker" is appended at the beginning of the
                 # contents of every file so the filepath is passed to the
                 # Pandoc filter which need it for links processing.
                 file_marker = '<md2pdf:file:%s/>' % markdown_filepath
@@ -148,11 +148,11 @@ def fix_special_characters_inside_links(markdown_content):
 
     if markdown_content is None:
         return ''
-    
+
     result = re.search(pattern_url,markdown_content,re.IGNORECASE | re.DOTALL)
 
     if result:
-        return (fix_special_characters_inside_links(result.group('prev')) + 
+        return (fix_special_characters_inside_links(result.group('prev')) +
                 re.sub(pattern,'\\1\\'+re.escape('\\2'),result.group('url')) +
                 fix_special_characters_inside_links(result.group('last')) )
 
@@ -171,7 +171,7 @@ def fix_html_before_title(markdown_content):
 
 def fix_img_in_new_line(markdown_content):
     markdown_content = re.sub(
-        r'\n([ \t]*)!\[', 
+        r'\n([ \t]*)!\[',
         r'\n\n\1![',
         markdown_content
     )
@@ -184,7 +184,7 @@ def fix_img_in_new_line(markdown_content):
 
 def fix_new_line_after_img(markdown_content):
     markdown_content =  re.sub(r'(?P<img>!\[[^\[\]]*\]\([^\(\)]*\)\n)',r'\g<img>\n', markdown_content)
-    
+
     markdown_content =  re.sub('(?P<img>!\[[^\[\]]*\]\([^\(\)]*\)\n\n)\n','\g<img>', markdown_content)
 
     return markdown_content
@@ -214,7 +214,7 @@ def add_newlines_before_markdown_headers(markdown_content):
     line_index = 0
 
     for markdown_line in markdown_lines:
-      
+
         if markdown_line.lstrip().startswith('```'):
             inside_a_code_block = not inside_a_code_block
 
@@ -237,10 +237,10 @@ def add_newlines_before_markdown_headers(markdown_content):
 def prevent_latex_images_floating(markdown_content):
     """Applies a simple \"hack\" so images aren't floated in resulting PDF.
 
-    When rendering a PDF from Markdown, a floating is given by LaTeX to some 
+    When rendering a PDF from Markdown, a floating is given by LaTeX to some
     standalone images (those alone in a paragraph); this caused some images
-    to appear in the middle of a code section or a paragraph. This simple 
-    hack adds a escaped space to the images, so they are interpreted as 
+    to appear in the middle of a code section or a paragraph. This simple
+    hack adds a escaped space to the images, so they are interpreted as
     images embeded in a paragraph and therefore no floating is applied by
     LaTeX.
 
@@ -261,12 +261,12 @@ def generate_pdf_from_markdown(pdf_filepath, markdown_filepath,developer_mode):
     dir_name = os.path.dirname(pdf_filepath)
     if not os.path.exists(dir_name):
         os.makedirs(dir_name)
-    
+
     latex_config_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'latex_configuration')
     latex_code_sections_config_path = os.path.join(latex_config_dir, 'code_sections.tex')
 
-    pandoc_options = ["--template", os.path.join(latex_config_dir, 'template.tex'), "--latex-engine=xelatex", 
-                      "--toc", "--toc-depth=3", "--listings", "-H", latex_code_sections_config_path, 
+    pandoc_options = ["--template", os.path.join(latex_config_dir, 'template.tex'), "--latex-engine=xelatex",
+                      "--toc", "--toc-depth=3", "--listings", "-H", latex_code_sections_config_path,
                       "--from", MD2PDF_INNER_FORMAT, "--filter", "md2pdf_pandoc_filter", "--number-sections",
                       "-V", 'papersize:"letterpaper"', "-V", 'fontsize:"10pt"', "-V", 'styfolder:{}'.format(latex_config_dir)]
 
@@ -283,7 +283,7 @@ def generate_pdf_from_markdown(pdf_filepath, markdown_filepath,developer_mode):
 
     if pandoc_call_return_value != 0:
         raise RuntimeError(
-            ( 
+            (
                 'Conversion to PDF failed - ' +\
                 'Pandoc failed with code: (%d)'
             ) % pandoc_call_return_value
@@ -292,14 +292,13 @@ def generate_pdf_from_markdown(pdf_filepath, markdown_filepath,developer_mode):
     print('Generating PDF...OK')
 
 
-def generate_md_cover(configuration_file_path, temp_cover_path):
+def generate_md_cover(configuration_file_path, temp_cover_path, cover_template_path):
     """Generate a MD cover using cover_metadata"""
 
     with open(configuration_file_path, 'rU') as configuration_file:
         configuration_file_content = yaml.load(configuration_file)
 
-    cover_template_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'cover_template')
-    cover_template_path = os.path.join(cover_template_dir, 'cover_template.md')
+    # cover_template_path = os.path.join(cover_template_dir, 'cover_template.md')
 
     try:
         cover_metadata = configuration_file_content['cover_metadata']
@@ -310,7 +309,7 @@ def generate_md_cover(configuration_file_path, temp_cover_path):
 
     with open (cover_template_path, "rU") as myfile:
         data=myfile.read()
-    
+
     try:
         data = data.replace('<title>', cover_metadata['title'] )
     except Exception as e:
@@ -340,7 +339,7 @@ def generate_default_cover_file(input_conf_file, output_file):
     try:
         #try if defined in the default config file
         configuration_file_content['cover_metadata']
-        
+
         configuration['cover_metadata'] = configuration_file_content['cover_metadata']
 
     except Exception, e:
@@ -349,13 +348,13 @@ def generate_default_cover_file(input_conf_file, output_file):
         default_cover_conf_file = os.path.join(cover_template_dir, 'default_cover_metadata.yml')
         with open(default_cover_conf_file, 'rU') as configuration_file:
             default_configuration_file_content = yaml.load(configuration_file)
-        
+
         try:
             #try to obtain site_name
             default_configuration_file_content['cover_metadata']['title']=configuration_file_content['site_name']
         except Exception as e:
-            pass        
-        
+            pass
+
         try:
             #try to obtain site description
             default_configuration_file_content['cover_metadata']['description']=configuration_file_content['site_description']
@@ -385,7 +384,7 @@ def merge_cover_with_content(pdf_files_list, output_pdf):
 def separate_latex_anchors(markdown_content):
     """Fixes an LaTeX error caused by having one empty \anchor
 
-    Fixes an LaTeX error caused by having one \anchor followed inmediatly by 
+    Fixes an LaTeX error caused by having one \anchor followed inmediatly by
     other (without content in the middle)"""
     return re.sub(
         r'\\anchor{(.*?)}\n\\anchor',
@@ -415,15 +414,16 @@ def main():
     check_all_requirements()
     # Parse user arguments.
     try:
-        opts, args = getopt.getopt(sys.argv[1:],"i:o:c:",["input=","output=","cover=","develop"])
+        opts, args = getopt.getopt(sys.argv[1:],"i:o:c:f:",["input=","output=","cover=","develop", "cover-file="])
     except getopt.GetoptError as error:
-        print(str(error)) 
+        print(str(error))
         print('Usage: \n\tmd2pdf -i <input-conf-file> -o <output-pdf-file>')
         sys.exit(2)
 
     # Default argument values.
     input_conf_file = 'md2pdf.yml'
     output_pdf_file = 'output.pdf'
+    cover_template_file = None
     cover_metadata_file = None
     generated_default_cover_metadata_file = os.path.join(tempfile.gettempdir(),'default_cover_metadata.yml')
     developer_mode = False
@@ -438,11 +438,35 @@ def main():
             developer_mode = True
         elif opt in ('--cover', "-c"):
             cover_metadata_file = arg
+        elif opt in ('--cover-file', "-f"):
+            cover_template_file = arg
 
     #check if cover metadata is provided
     if cover_metadata_file is None:
         generate_default_cover_file(input_conf_file, generated_default_cover_metadata_file)
         cover_metadata_file = generated_default_cover_metadata_file
+
+
+    print("----------------===============---------------")
+
+    if cover_template_file is None:
+        cover_template_file = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'cover_template')
+    else:
+        if not os.path.isfile(cover_template_file):
+            cover_template_file = os.getcwd() + "/" + cover_template_file
+            if not os.path.isfile(cover_template_file):
+                print('ERROR: input file [%s] not found' % (cover_template_file), file=sys.stderr)
+                sys.exit(2)
+        else:
+            cover_template_file = os.path.realpath(cover_template_file)
+
+    if(cover_template_file):
+        cover_template_dir = os.path.dirname(cover_template_file)
+    else:
+        cover_template_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'cover_template')
+
+    print(cover_template_file)
+    print(cover_template_dir)
 
     # Check that input file exists.
     if not os.path.isfile(input_conf_file):
@@ -458,21 +482,25 @@ def main():
     temp_cover_md_path = os.path.join(temp_dirpath,'markdown_to_pdf_cover_temp.md')
     temp_pdf_path = os.path.join(temp_dirpath,'markdown_to_pdf_content_temp.pdf')
     temp_cover_pdf_path = os.path.join(temp_dirpath,'markdown_to_pdf_cover_temp.pdf')
-    cover_template_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'cover_template')
+    # cover_template_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'cover_template')
 
-    shutil.copy2(os.path.join(cover_template_dir, 'cover_img.png'), os.path.join(temp_dirpath,'cover_img.png'))
+    print(os.path.dirname(os.path.realpath(__file__)))
+    print("----------------===============---------------")
+    # exit()
 
-    shutil.copy2(os.path.join(cover_template_dir, 'fiware_logo.png'), os.path.join(temp_dirpath,'fiware_logo.png'))
-    
+    # shutil.copy2(os.path.join(cover_template_dir, 'cover_img.png'), os.path.join(temp_dirpath,'cover_img.png'))
+
+    # shutil.copy2(os.path.join(cover_template_dir, 'fiware_logo.png'), os.path.join(temp_dirpath,'fiware_logo.png'))
+
     output_dir = os.path.dirname(output_pdf_file)
-    
+
     if '' != output_dir:
         try:
             os.makedirs(output_dir)
         except OSError as exception:
             if exception.errno != errno.EEXIST:
                 raise
-    
+
 
     try:
         markdown_filepaths = get_markdown_filepaths(input_conf_file)
@@ -481,7 +509,7 @@ def main():
 
         generate_pdf_from_markdown(temp_pdf_path, monolitic_markdown_filepath,developer_mode)
 
-        if generate_md_cover(cover_metadata_file, temp_cover_md_path):
+        if generate_md_cover(cover_metadata_file, temp_cover_md_path, cover_template_file):
             render_pdf_cover(temp_cover_md_path, temp_cover_pdf_path)
             merge_cover_with_content([temp_cover_pdf_path, temp_pdf_path], output_pdf_file)
         else:
